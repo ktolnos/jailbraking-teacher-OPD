@@ -1,0 +1,22 @@
+# CUDA toolchain pins -- do not relax without re-testing the flashinfer build.
+#
+# `uv pip install vllm` resolves an INTERNALLY INCONSISTENT CUDA 13 wheel set:
+# nvcc/crt/nvvm land on 13.4.59 while the runtime headers are 13.0 (torch is
+# built against CUDA 13.0). flashinfer JIT-compiles its sampling kernels at
+# vLLM warmup and that skew breaks the build twice over:
+#   1. CCCL's guard: "CUDA compiler and CUDA toolkit headers are incompatible"
+#   2. after pinning nvcc alone: cicc (from nvvm) emits PTX 9.4 while
+#      ptxas 13.0 only accepts 9.0 -> "Unsupported .version 9.4"
+# Pinning all four compile-time components to 13.0.88 matches the 13.0 headers
+# and torch, and the kernels build. Verified by compiling
+# flashinfer/data/csrc/renorm.cu for sm_90a on the dev box (no GPU needed).
+nvidia-cuda-nvcc==13.0.88
+nvidia-cuda-crt==13.0.88
+nvidia-cuda-nvrtc==13.0.88
+nvidia-nvvm==13.0.88
+#
+# The wheels also need three symlinks that scripts/env.sh creates (lib64->lib,
+# libcudart.so, stubs/libcuda.so); without them the compiles pass and the final
+# `c++ -shared` fails with "cannot find -lcudart / -lcuda". The whole build --
+# 3 nvcc compiles plus the link -- was reproduced on the dev box (no GPU
+# needed) before submitting, producing sampling.so at 2.2 MB.

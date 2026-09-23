@@ -1,0 +1,6 @@
+# raw API response caches: large, regenerable, and re-running with them is free
+scripts/*.sqlite
+scripts/*.bak
+results/
+.venv/
+__pycache__/
